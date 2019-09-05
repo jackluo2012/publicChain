@@ -1,10 +1,27 @@
 package BLC
 
-import "math/big"
+import (
+	"bytes"
+	"crypto/sha256"
+	"fmt"
+	"math/big"
+)
 
 type ProofOfWork struct {
 	Block  *Block   //当前要验证的区块
 	target *big.Int // 大数存储
+}
+
+func (pow *ProofOfWork) prepareData(nonce int64) []byte {
+	data := bytes.Join([][]byte{pow.Block.PrevBlockHash,
+		pow.Block.Data,
+		IntToHex(pow.Block.TimeStamp),
+		IntToHex(int64(targetBit)),
+		IntToHex(int64(nonce)),
+		IntToHex(int64(pow.Block.Height)),
+	},
+		[]byte{})
+	return data
 }
 
 // 难度 - 挖矿 的 难度
@@ -15,7 +32,32 @@ type ProofOfWork struct {
 const targetBit = 16
 
 func (proofOfWork *ProofOfWork) Run() ([]byte, int64) {
-	return []byte{}, 0
+	// 1.将block 的属性拼接成字节数组
+
+	// 2.生成hash
+
+	//3.判断hash有效性，如果满足条件，跳出循环
+	var nonce int64
+	var hashInt big.Int //存储我们新生成的hash
+	var hash [32]byte
+	for {
+		dataBytes := proofOfWork.prepareData(nonce)
+
+		//生成hash
+		hash = sha256.Sum256(dataBytes)
+		fmt.Printf("\r%x", hash)
+		//将hash 存储到hashInt
+		hashInt.SetBytes(hash[:])
+
+		//判断hashInt 是否小于Block里面的target
+		if proofOfWork.target.Cmp(&hashInt) == 1 {
+			break
+		}
+
+		nonce++
+	}
+
+	return hash[:], nonce
 }
 
 // 创建新的工作量工作证明对象
@@ -32,5 +74,5 @@ func NewProofOfWork(block *Block) *ProofOfWork {
 	// 2.左移256 - targetBit
 	target = target.Lsh(target, 256-targetBit)
 
-	return &ProofOfWork{block, 5}
+	return &ProofOfWork{block, target}
 }
