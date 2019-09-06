@@ -31,6 +31,23 @@ func (pow *ProofOfWork) prepareData(nonce int64) []byte {
 //256位Hash里面前面至少要有16个零
 const targetBit = 16
 
+/**
+ * 检查 工作量算法，是否有效
+ */
+func (proofOfWork *ProofOfWork) IsValid() bool {
+
+	// 1.proofOfWork.Blck.Heigh
+	// 2.proofOfWork.Target
+	var hashInt big.Int
+	hashInt.SetBytes(proofOfWork.Block.Hash)
+
+	if proofOfWork.target.Cmp(&hashInt) == 1 {
+		return true
+	}
+
+	return false
+}
+
 func (proofOfWork *ProofOfWork) Run() ([]byte, int64) {
 	// 1.将block 的属性拼接成字节数组
 

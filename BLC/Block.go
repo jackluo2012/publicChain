@@ -1,6 +1,7 @@
 package BLC
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -31,6 +32,7 @@ func NewBlock(data string, height int64, prevBlockHash []byte) *Block {
 	//
 	// 000000
 	hash, nonce := pow.Run()
+	fmt.Println()
 	block.Nonce = nonce
 	block.Hash = hash[:]
 	return block
