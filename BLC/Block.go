@@ -68,5 +68,9 @@ func NewBlock(data string, height int64, prevBlockHash []byte) *Block {
 
 // 2.单独写一个方法，生成创世区块
 func CreateGenesisBlock(data string) *Block {
+
+
+
+
 	return NewBlock(data, 1, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 }
