@@ -8,32 +8,55 @@ import (
 )
 
 func main() {
-	//创世区块
-	//blockchain := BLC.CreateBlockchainWithGenesisBlock()
-	//
-	////新区块
-	//blockchain.AddBlockToBlockchain("Send 100RMB To jack", blockchain.Blocks[len(blockchain.Blocks)-1].Height+1, blockchain.Blocks[len(blockchain.Blocks)-1].Hash)
-	//blockchain.AddBlockToBlockchain("Send 100RMB To tom", blockchain.Blocks[len(blockchain.Blocks)-1].Height+1, blockchain.Blocks[len(blockchain.Blocks)-1].Hash)
-	//blockchain.AddBlockToBlockchain("Send 100RMB To jimes", blockchain.Blocks[len(blockchain.Blocks)-1].Height+1, blockchain.Blocks[len(blockchain.Blocks)-1].Hash)
-	//blockchain.AddBlockToBlockchain("Send 100RMB To bobi", blockchain.Blocks[len(blockchain.Blocks)-1].Height+1, blockchain.Blocks[len(blockchain.Blocks)-1].Hash)
-	//blockchain.AddBlockToBlockchain("Send 100RMB To xx", blockchain.Blocks[len(blockchain.Blocks)-1].Height+1, blockchain.Blocks[len(blockchain.Blocks)-1].Hash)
 
 	block := BLC.NewBlock("Test", 1, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 
 	fmt.Printf("%d\n", block.Nonce)
 	fmt.Printf("%x\n", block.Hash)
 
-	proofOfWork := BLC.NewProofOfWork(block)
+	//创建或是打开数据库
+	db, err := bolt.Open("my.db", 06000, nil)
+	if err != nil {
+		log.Panic(err)
+	}
+	defer db.Close()
 
-	fmt.Printf("%v", proofOfWork.IsValid())
+	err = db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("blocks"))
+		if b == nil {
+			b, err = tx.CreateBucket([]byte("blocks"))
+			if err != nil {
+				log.Panic("blocks table create faild ......")
 
-	bytess := block.Serialize()
-	fmt.Println(bytess)
-	block = BLC.DeserializeBlock(bytess)
-	fmt.Printf("%d\n", block.Nonce)
+				return err
+			}
+		}
+		err := b.Put([]byte("l"), block.Serialize())
 
-	//
-	boltTest()
+		if err != nil {
+			return err
+		}
+
+		return nil
+	})
+
+	err = db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("blocks"))
+		if b != nil {
+			blockData := b.Get([]byte("l"))
+			fmt.Println(blockData)
+			fmt.Printf("%s\n", blockData)
+			block := BLC.DeserializeBlock(blockData)
+			fmt.Printf("%v\n", block)
+
+		}
+
+		return nil
+	})
+
+	if err != nil {
+		log.Panic(err)
+	}
 }
 
 func boltTest() {
