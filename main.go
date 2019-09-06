@@ -11,6 +11,10 @@ func main() {
 
 	blockchain := BLC.CreateBlockchainWithGenesisBlock()
 	defer blockchain.DB.Close()
+
+	blockchain.AddBlockToBlockchain("first blocks")
+	blockchain.AddBlockToBlockchain("second blocks")
+	blockchain.AddBlockToBlockchain("three  blocks")
 }
 
 func boltTest() {
@@ -23,11 +27,15 @@ func boltTest() {
 	//创建表 .
 	err = db.Update(func(tx *bolt.Tx) error {
 
-		//创建BlockBucket表
-		b, err := tx.CreateBucket([]byte("BlockBucket"))
-		if err != nil {
-			return fmt.Errorf("Create bucket: %s", err)
+		b := tx.Bucket([]byte("BlockBucket"))
+		if b == nil {
+			//创建BlockBucket表
+			b, err = tx.CreateBucket([]byte("BlockBucket"))
+			if err != nil {
+				return fmt.Errorf("Create bucket: %s", err)
+			}
 		}
+
 		//往表里面存储数据
 		if b != nil {
 			b.Put([]byte("l"), []byte("Send 100 BTC To 强哥......"))

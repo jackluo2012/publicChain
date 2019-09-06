@@ -21,10 +21,39 @@ type Blockchain struct {
 
 //增加区块到区块链里面
 
-func (blc *Blockchain) AddBlockToBlockchain(data string, height int64, preHash []byte) {
+func (blc *Blockchain) AddBlockToBlockchain(data string) {
 	//创建新区块
-	//newBlock := NewBlock(data, height, preHash)
+
 	// 往链里面添加区块
+	err := blc.DB.Update(func(tx *bolt.Tx) error {
+		//1. 获取表
+		b := tx.Bucket([]byte(blockTableName))
+
+		//2.创建新区块
+		if b != nil {
+			//// 先获取 最新区块
+
+			blockBytes := b.Get(blc.Tip)
+			//反序列化
+			block := DeserializeBlock(blockBytes)
+
+			newBlock := NewBlock(data, block.Height, block.Hash)
+			//3.将区块序列化并且存储到数据为中
+			err := b.Put(newBlock.Hash, newBlock.Serialize())
+			if err != nil {
+				log.Panic(err)
+			}
+			//4.更新数据库里面"l"对应的hash值
+			b.Put([]byte(blockNewHeader), newBlock.Hash)
+			//5.更新blockchain的Tip
+			blc.Tip = newBlock.Hash
+		}
+
+		return nil
+	})
+	if err != nil {
+		log.Panic(err)
+	}
 	//blc.Blocks = append(blc.Blocks, newBlock)
 }
 
@@ -40,12 +69,16 @@ func CreateBlockchainWithGenesisBlock() *Blockchain {
 	var blockHash []byte
 
 	err = db.Update(func(tx *bolt.Tx) error {
-		//创建数据库
-		b, err := tx.CreateBucket([]byte(blockTableName))
-		if err != nil {
-			log.Panic(err)
-		}
+		b := tx.Bucket([]byte(blockTableName))
 		if b == nil {
+			//创建数据库
+			b, err = tx.CreateBucket([]byte(blockTableName))
+			if err != nil {
+				log.Panic(err)
+			}
+		}
+
+		if b != nil {
 			//创建创世区块
 			genesisBlock := CreateGenesisBlock("Genesis Data.....")
 			//将创世区块存储到表中
