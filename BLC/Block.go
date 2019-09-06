@@ -1,7 +1,10 @@
 package BLC
 
 import (
+	"bytes"
+	"encoding/gob"
 	"fmt"
+	"log"
 	"time"
 )
 
@@ -19,6 +22,31 @@ type Block struct {
 	Hash []byte
 	//6.Nonce
 	Nonce int64
+}
+
+//将区块序列化成字节数组
+func (block *Block) Serialize() []byte {
+	var result bytes.Buffer
+
+	//打包
+	encoder := gob.NewEncoder(&result)
+	//序列化
+	err := encoder.Encode(block)
+	if err != nil {
+		log.Panic(err)
+	}
+	return result.Bytes()
+}
+
+//反序化
+func DeserializeBlock(blockBytes []byte) *Block {
+	var block Block
+	decoder := gob.NewDecoder(bytes.NewReader(blockBytes))
+	err := decoder.Decode(&block)
+	if err != nil {
+		log.Panic(err)
+	}
+	return &block
 }
 
 //1.创建新的区块

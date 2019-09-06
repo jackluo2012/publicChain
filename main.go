@@ -24,4 +24,9 @@ func main() {
 	proofOfWork := BLC.NewProofOfWork(block)
 
 	fmt.Printf("%v", proofOfWork.IsValid())
+
+	bytess := block.Serialize()
+	fmt.Println(bytess)
+	block = BLC.DeserializeBlock(bytess)
+	fmt.Printf("%d\n", block.Nonce)
 }
