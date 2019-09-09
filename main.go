@@ -15,6 +15,7 @@ func main() {
 	blockchain.AddBlockToBlockchain("first blocks")
 	blockchain.AddBlockToBlockchain("second blocks")
 	blockchain.AddBlockToBlockchain("three  blocks")
+	blockchain.PrintChain()
 }
 
 func boltTest() {

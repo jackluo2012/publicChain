@@ -1,8 +1,11 @@
 package BLC
 
 import (
+	"fmt"
 	"github.com/boltdb/bolt"
 	"log"
+	"math/big"
+	"time"
 )
 
 //数据库
@@ -19,8 +22,47 @@ type Blockchain struct {
 	DB  *bolt.DB
 }
 
-//增加区块到区块链里面
+/**
+ * 遍历输出所有的信息
+ */
+func (blc *Blockchain) PrintChain() {
+	var block *Block
 
+	var currentHash []byte = blc.Tip
+	for {
+		//1.取出最新的区块
+		err := blc.DB.View(func(tx *bolt.Tx) error {
+			b := tx.Bucket([]byte(blockTableName))
+			if b != nil {
+				//获取 当前区块的字节数组
+				blockBytes := b.Get(currentHash)
+				//反序列化
+				block = DeserializeBlock(blockBytes)
+
+				fmt.Printf("Height: %d\n", block.Height)
+				fmt.Printf("PrevBlockHash: %x\n", block.Height)
+				fmt.Printf("Data: %s\n", block.Data)
+				fmt.Printf("Timestamp: %s\n", time.Unix(block.TimeStamp, 0).Format("2006-01-02 03:04:05"))
+				fmt.Printf("Hash: %x\n", block.Hash)
+				fmt.Printf("Nonce: %d\n", block.Nonce)
+			}
+
+			return nil
+		})
+		if err != nil {
+			log.Panic(err)
+		}
+		var hashInt big.Int
+		hashInt.SetBytes(block.PrevBlockHash)
+		if big.NewInt(0).Cmp(&hashInt) == 0 {
+			break
+		}
+
+		currentHash = block.PrevBlockHash
+	}
+}
+
+//增加区块到区块链里面
 func (blc *Blockchain) AddBlockToBlockchain(data string) {
 	//创建新区块
 
