@@ -46,10 +46,24 @@ func (blc *Blockchain) PrintChain() {
 
 		fmt.Printf("Height: %d\n", block.Height)
 		fmt.Printf("PrevBlockHash: %x\n", block.Height)
-		fmt.Printf("Data: %s\n", block.Data)
+
 		fmt.Printf("Timestamp: %s\n", time.Unix(block.TimeStamp, 0).Format("2006-01-02 03:04:05"))
 		fmt.Printf("Hash: %x\n", block.Hash)
 		fmt.Printf("Nonce: %d\n", block.Nonce)
+
+		for _, tx := range block.Txs {
+			fmt.Printf("%s\n", tx.TxHash)
+			fmt.Println("Vins:")
+			for _, in := range tx.Vins {
+				fmt.Printf("%s\n",in.TxHash)
+				fmt.Printf("%d\n",in.Vout)
+			}
+			fmt.Println("Vouts:")
+			for _, out := range tx.Vouts {
+				fmt.Println(out.Value)
+				fmt.Println(out.ScriptPubKey)
+			}
+		}
 
 		var hashInt big.Int
 		//把字节数组转换成数字
@@ -61,7 +75,7 @@ func (blc *Blockchain) PrintChain() {
 }
 
 //增加区块到区块链里面
-func (blc *Blockchain) AddBlockToBlockchain(data string) {
+func (blc *Blockchain) AddBlockToBlockchain(txs []*Transaction) {
 	//创建新区块
 
 	// 往链里面添加区块
@@ -77,7 +91,7 @@ func (blc *Blockchain) AddBlockToBlockchain(data string) {
 			//反序列化
 			block := DeserializeBlock(blockBytes)
 
-			newBlock := NewBlock(data, block.Height+1, block.Hash)
+			newBlock := NewBlock(txs, block.Height+1, block.Hash)
 			//3.将区块序列化并且存储到数据为中
 			err := b.Put(newBlock.Hash, newBlock.Serialize())
 			if err != nil {
@@ -99,7 +113,7 @@ func (blc *Blockchain) AddBlockToBlockchain(data string) {
 
 //1.创建带有创世区块的区块链
 
-func CreateBlockchainWithGenesisBlock(data string) {
+func CreateBlockchainWithGenesisBlock(address string) {
 	// 判断数据库是否存在
 	if dbExists() {
 		fmt.Println("创世区块已经存在....")
@@ -124,7 +138,10 @@ func CreateBlockchainWithGenesisBlock(data string) {
 
 		if b != nil {
 			//创建创世区块
-			genesisBlock := CreateGenesisBlock(data)
+			//创建了一个coinbase Transaction
+			txCoinBase := NewCoinBaseTransaction(address)
+
+			genesisBlock := CreateGenesisBlock([]*Transaction{txCoinBase})
 			//将创世区块存储到表中
 			err = b.Put(genesisBlock.Hash, genesisBlock.Serialize())
 

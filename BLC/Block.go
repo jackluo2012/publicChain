@@ -2,6 +2,7 @@ package BLC
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/gob"
 	"fmt"
 	"log"
@@ -15,13 +16,26 @@ type Block struct {
 	//2.上一个 区块HASH
 	PrevBlockHash []byte
 	//3.交易数据
-	Data []byte
+	Txs []*Transaction
 	//4.时间戮
 	TimeStamp int64
 	//5.Hash
 	Hash []byte
 	//6.Nonce
 	Nonce int64
+}
+
+// 将区块序列化成字节数组
+func (block *Block) HashTransactions() []byte {
+
+	var txHashes [][]byte
+	var txHash [32]byte
+
+	for _, tx := range block.Txs {
+		txHashes = append(txHashes, tx.TxHash)
+	}
+	txHash = sha256.Sum256(bytes.Join(txHashes, []byte{}))
+	return txHash[:]
 }
 
 //将区块序列化成字节数组
@@ -50,9 +64,9 @@ func DeserializeBlock(blockBytes []byte) *Block {
 }
 
 //1.创建新的区块
-func NewBlock(data string, height int64, prevBlockHash []byte) *Block {
+func NewBlock(txs []*Transaction, height int64, prevBlockHash []byte) *Block {
 	//创建区块
-	block := &Block{height, prevBlockHash, []byte(data), time.Now().Unix(), nil, 0}
+	block := &Block{height, prevBlockHash, txs, time.Now().Unix(), nil, 0}
 
 	// 调用工作量证明的方法并且返回有效的hash和Nonce值
 	//返回有效的hash 和nonce值
@@ -67,7 +81,7 @@ func NewBlock(data string, height int64, prevBlockHash []byte) *Block {
 }
 
 // 2.单独写一个方法，生成创世区块
-func CreateGenesisBlock(data string) *Block {
+func CreateGenesisBlock(txs []*Transaction) *Block {
 
-	return NewBlock(data, 1, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
+	return NewBlock(txs, 1, []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0})
 }

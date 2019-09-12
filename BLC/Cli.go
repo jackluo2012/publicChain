@@ -15,7 +15,7 @@ func printUsage() {
 	fmt.Println("Usage:")
 	fmt.Println("\taddBlock -data DATA -- 交易数据.")
 	fmt.Println("\tprintChain  -- 输出区块信息.")
-	fmt.Println("\tcreateGenesisBlock  -- 输出区块信息.")
+	fmt.Println("\tcreateGenesisBlock -address  -- 输出区块信息.")
 
 }
 
@@ -26,7 +26,7 @@ func isValidArgs() {
 		os.Exit(1)
 	}
 }
-func (cli *Cli) addBlock(data string) {
+func (cli *Cli) addBlock(txs []*Transaction) {
 	if !dbExists() {
 		fmt.Println("数据不存在....")
 		os.Exit(1)
@@ -35,7 +35,7 @@ func (cli *Cli) addBlock(data string) {
 	//真的要关闭吗？
 	defer blockchain.DB.Close()
 
-	blockchain.AddBlockToBlockchain(data)
+	blockchain.AddBlockToBlockchain([]*Transaction{})
 }
 
 func (cli *Cli) printchain() {
@@ -47,11 +47,14 @@ func (cli *Cli) printchain() {
 	blockchain.PrintChain()
 }
 
-func (cli *Cli) createGenesisBlockchain(data string) {
+func (cli *Cli) createGenesisBlockchain(address string) {
 
-	CreateBlockchainWithGenesisBlock(data)
 
-	fmt.Println(data)
+	// 1. 创建coinBase
+
+	CreateBlockchainWithGenesisBlock(address)
+
+	fmt.Println(address)
 }
 
 func (cli *Cli) Run() {
@@ -62,7 +65,7 @@ func (cli *Cli) Run() {
 	createBlockChainCmd := flag.NewFlagSet("createGenesisBlock", flag.ExitOnError)
 
 	flagAddBlockData := addBlockFlagCmd.String("data", "", "")
-	flagcreateBlockChainWithData := createBlockChainCmd.String("data", "Genesis Data .....", "")
+	flagcreateBlockChainWithAddress := createBlockChainCmd.String("address", "", "创建创世区块的地址")
 
 	switch os.Args[1] {
 	case "addBlock":
@@ -93,7 +96,7 @@ func (cli *Cli) Run() {
 		}
 		blockchain := BlockChainObject()
 		defer blockchain.DB.Close()
-		blockchain.AddBlockToBlockchain(*flagAddBlockData)
+		blockchain.AddBlockToBlockchain([]*Transaction{})
 
 	}
 	//循环打印
@@ -104,7 +107,13 @@ func (cli *Cli) Run() {
 	}
 	//创建创世区块链
 	if createBlockChainCmd.Parsed() {
-		cli.createGenesisBlockchain(*flagcreateBlockChainWithData)
+		if *flagcreateBlockChainWithAddress ==""{
+			fmt.Println("地址不能为空.....")
+			printUsage()
+			os.Exit(1)
+		}
+
+		cli.createGenesisBlockchain(*flagcreateBlockChainWithAddress)
 	}
 
 }
