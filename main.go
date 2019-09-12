@@ -9,13 +9,8 @@ import (
 
 func main() {
 
-	blockchain := BLC.CreateBlockchainWithGenesisBlock()
-	defer blockchain.DB.Close()
-
-	blockchain.AddBlockToBlockchain("first blocks")
-	blockchain.AddBlockToBlockchain("second blocks")
-	blockchain.AddBlockToBlockchain("three  blocks")
-	blockchain.PrintChain()
+	cli := BLC.Cli{}
+	cli.Run()
 }
 
 func boltTest() {

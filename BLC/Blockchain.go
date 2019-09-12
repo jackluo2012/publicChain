@@ -5,6 +5,7 @@ import (
 	"github.com/boltdb/bolt"
 	"log"
 	"math/big"
+	"os"
 	"time"
 )
 
@@ -25,6 +26,14 @@ type Blockchain struct {
 //创建区块链的迭代器
 func (blockchain *Blockchain) Iterator() *BlockchainIterator {
 	return &BlockchainIterator{blockchain.Tip, blockchain.DB}
+}
+
+//判断数据库是否存在
+func dbExists() bool {
+	if _, err := os.Stat(dbName); os.IsNotExist(err) {
+		return false
+	}
+	return true
 }
 
 /**
@@ -68,7 +77,7 @@ func (blc *Blockchain) AddBlockToBlockchain(data string) {
 			//反序列化
 			block := DeserializeBlock(blockBytes)
 
-			newBlock := NewBlock(data, block.Height, block.Hash)
+			newBlock := NewBlock(data, block.Height+1, block.Hash)
 			//3.将区块序列化并且存储到数据为中
 			err := b.Put(newBlock.Hash, newBlock.Serialize())
 			if err != nil {
@@ -90,8 +99,12 @@ func (blc *Blockchain) AddBlockToBlockchain(data string) {
 
 //1.创建带有创世区块的区块链
 
-func CreateBlockchainWithGenesisBlock() *Blockchain {
-
+func CreateBlockchainWithGenesisBlock(data string) {
+	// 判断数据库是否存在
+	if dbExists() {
+		fmt.Println("创世区块已经存在....")
+		os.Exit(2)
+	}
 	//创建或打开数据库
 	db, err := bolt.Open(dbName, 0666, nil)
 	if err != nil {
@@ -111,7 +124,7 @@ func CreateBlockchainWithGenesisBlock() *Blockchain {
 
 		if b != nil {
 			//创建创世区块
-			genesisBlock := CreateGenesisBlock("Genesis Data.....")
+			genesisBlock := CreateGenesisBlock(data)
 			//将创世区块存储到表中
 			err = b.Put(genesisBlock.Hash, genesisBlock.Serialize())
 
@@ -129,7 +142,36 @@ func CreateBlockchainWithGenesisBlock() *Blockchain {
 
 		return nil
 	})
-	//返回区块链对象
-	return &Blockchain{blockHash, db}
+}
 
+/**
+ * 返回 Blokchain 对象
+ */
+func BlockChainObject() *Blockchain {
+
+	if !dbExists() {
+		log.Println("数据不存在...")
+		os.Exit(0)
+	}
+
+	//创建或打开数据库
+	db, err := bolt.Open(dbName, 0666, nil)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var tip []byte
+	err = db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(blockTableName))
+		if b != nil {
+			tip = b.Get([]byte("l"))
+		}
+		return nil
+	})
+
+	if err != nil {
+		log.Panic(err)
+	}
+
+	return &Blockchain{tip, db}
 }
