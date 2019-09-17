@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/sha256"
 	"encoding/gob"
+	"encoding/hex"
 	"log"
 )
 
@@ -64,32 +65,37 @@ func (tx *Transaction) HashTransaction() {
 }
 
 // 2.转账时产生的Transaction
-func NewSimpleTransaction(from, to string, amount int64) *Transaction {
+func NewSimpleTransaction(from, to string, amount int64, blockchain *Blockchain) *Transaction {
 
 	// 1.有一个函数，返回from 这个人所有的未花费交易输出所对应的Transaction
 
+	//unUTXOs := blockchain.UnUTXOs(from)
 	//unSpentTx := UnSpentTransationsWithAdress(from)
 
 	// 2.通过一个函数，返回
-	// money ,dic :=
+	money, spendableUTXODic := blockchain.FindSpendableUTXOS(from, amount)
 
 	var txInputs []*TXInput
 	var txOutputs []*TXOutput
-	//代表消费
-	txInput := &TXInput{[]byte{}, -1, "Genesis Data"}
 
-	// 消费
-	txInputs = append(txInputs, txInput)
+	for txHash, indexArray := range spendableUTXODic {
+		txHashBytes, _ := hex.DecodeString(txHash)
+		for _, index := range indexArray {
+			//未花费的交易输出
+			txInput := &TXInput{txHashBytes, index, from}
+			txInputs = append(txInputs, txInput)
+		}
+	}
 
 	// 转账
-	txOutput := &TXOutput{amount, from}
+	txOutput := &TXOutput{amount, to}
 	txOutputs = append(txOutputs, txOutput)
 
 	//找零
-	txOutput = &TXOutput{10, from}
+	txOutput = &TXOutput{money - amount, from}
 	txOutputs = append(txOutputs, txOutput)
 
-	tx := &Transaction{[]byte("13121"), txInputs, txOutputs}
+	tx := &Transaction{[]byte(""), txInputs, txOutputs}
 
 	//设置hash 值
 	tx.HashTransaction()

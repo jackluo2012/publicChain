@@ -199,10 +199,10 @@ func BlockChainObject() *Blockchain {
 }
 
 // 如果一个地址对应的TXOutput 未花费，那么这个Transaction就应该添加到数据中返回
-func (blockchain *Blockchain) UnSpentTransationsWithAdress(address string) []*TXOutput {
+func (blockchain *Blockchain) UnUTXOs(address string) []*UTXOS {
 
 	// 未消费
-	var unUTXOs []*TXOutput
+	var unUTXOs []*UTXOS
 
 	spentTXOutputs := make(map[string][]int)
 	// input 消费
@@ -244,13 +244,15 @@ func (blockchain *Blockchain) UnSpentTransationsWithAdress(address string) []*TX
 										if index == i {
 											continue
 										} else {
-											unUTXOs = append(unUTXOs, out)
+											txout := &UTXOS{tx.TxHash, index, out}
+											unUTXOs = append(unUTXOs, txout)
 										}
 									}
 								}
 							}
 						} else {
-							unUTXOs = append(unUTXOs, out)
+							txout := &UTXOS{tx.TxHash, index, out}
+							unUTXOs = append(unUTXOs, txout)
 						}
 					}
 				}
@@ -268,6 +270,35 @@ func (blockchain *Blockchain) UnSpentTransationsWithAdress(address string) []*TX
 	return unUTXOs
 }
 
+//转账时查找 可用的 UTXO
+func (blockchain *Blockchain) FindSpendableUTXOS(from string, amount int64) (int64, map[string][]int) {
+	// 1.现获取 所有的 UTXO
+	utxos := blockchain.UnUTXOs(from)
+
+	spendableUTXO := make(map[string][]int)
+	// 2.遍历 utxos
+
+	var value int64
+
+	for _, utxo := range utxos {
+
+		value = value + utxo.Output.Value
+
+		hash := hex.EncodeToString(utxo.TxHash)
+		spendableUTXO[hash] = append(spendableUTXO[hash], utxo.Index)
+
+		if value >= int64(amount) {
+			break
+		}
+	}
+
+	if value < int64(amount) {
+		fmt.Printf("%s's fund is 不足\n", from)
+		os.Exit(1)
+	}
+	return value, spendableUTXO
+}
+
 // 挖掘新的区块
 func (blockchain *Blockchain) MineNewBlock(from, to, amounts []string) {
 
@@ -275,7 +306,7 @@ func (blockchain *Blockchain) MineNewBlock(from, to, amounts []string) {
 
 	//1.建立一笔交易
 	amount, _ := strconv.Atoi(amounts[0])
-	tx := NewSimpleTransaction(from[0], to[0], int64(amount))
+	tx := NewSimpleTransaction(from[0], to[0], int64(amount), blockchain)
 
 	fmt.Println(from)
 	fmt.Println(to)
@@ -301,7 +332,7 @@ func (blockchain *Blockchain) MineNewBlock(from, to, amounts []string) {
 	})
 
 	//2.建立新的区块
-	block = NewBlock(txs, block.Height, block.Hash)
+	block = NewBlock(txs, block.Height+1, block.Hash)
 
 	// 3.更新存储到数据库
 
