@@ -1,11 +1,13 @@
 package BLC
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/boltdb/bolt"
 	"log"
 	"math/big"
 	"os"
+	"strconv"
 	"time"
 )
 
@@ -55,8 +57,8 @@ func (blc *Blockchain) PrintChain() {
 			fmt.Printf("%s\n", tx.TxHash)
 			fmt.Println("Vins:")
 			for _, in := range tx.Vins {
-				fmt.Printf("%s\n",in.TxHash)
-				fmt.Printf("%d\n",in.Vout)
+				fmt.Printf("%s\n", in.TxHash)
+				fmt.Printf("%d\n", in.Vout)
 			}
 			fmt.Println("Vouts:")
 			for _, out := range tx.Vouts {
@@ -113,7 +115,7 @@ func (blc *Blockchain) AddBlockToBlockchain(txs []*Transaction) {
 
 //1.创建带有创世区块的区块链
 
-func CreateBlockchainWithGenesisBlock(address string) {
+func CreateBlockchainWithGenesisBlock(address string) *Blockchain {
 	// 判断数据库是否存在
 	if dbExists() {
 		fmt.Println("创世区块已经存在....")
@@ -124,6 +126,8 @@ func CreateBlockchainWithGenesisBlock(address string) {
 	if err != nil {
 		log.Fatal(err)
 	}
+	// 关闭数据库
+
 	var blockHash []byte
 
 	err = db.Update(func(tx *bolt.Tx) error {
@@ -159,6 +163,7 @@ func CreateBlockchainWithGenesisBlock(address string) {
 
 		return nil
 	})
+	return &Blockchain{blockHash, db}
 }
 
 /**
@@ -191,4 +196,125 @@ func BlockChainObject() *Blockchain {
 	}
 
 	return &Blockchain{tip, db}
+}
+
+// 如果一个地址对应的TXOutput 未花费，那么这个Transaction就应该添加到数据中返回
+func (blockchain *Blockchain) UnSpentTransationsWithAdress(address string) []*TXOutput {
+
+	// 未消费
+	var unUTXOs []*TXOutput
+
+	spentTXOutputs := make(map[string][]int)
+	// input 消费
+
+	blockIterator := blockchain.Iterator()
+
+	for {
+
+		block := blockIterator.Next()
+
+		for _, tx := range block.Txs {
+
+			// txHash
+			//Vins
+			if tx.IsCoinbaseTransactions() == false {
+
+				for _, in := range tx.Vins {
+					//是否能够解锁
+					if in.UnLockWithAdress(address) {
+
+						key := hex.EncodeToString(in.TxHash)
+						spentTXOutputs[key] = append(spentTXOutputs[key], in.Vout)
+					}
+				}
+			}
+
+			//Vouts
+			for index, out := range tx.Vouts {
+
+				//解锁
+				if out.UnLockWithAdress(address) {
+
+					if spentTXOutputs != nil {
+						if (len(spentTXOutputs) != 0) {
+							for txHash, indexArray := range spentTXOutputs {
+
+								if txHash == hex.EncodeToString(tx.TxHash) {
+									for _, i := range indexArray {
+										if index == i {
+											continue
+										} else {
+											unUTXOs = append(unUTXOs, out)
+										}
+									}
+								}
+							}
+						} else {
+							unUTXOs = append(unUTXOs, out)
+						}
+					}
+				}
+			}
+		}
+
+		var hashInt big.Int
+		hashInt.SetBytes(block.PrevBlockHash)
+
+		if hashInt.Cmp(big.NewInt(0)) == 0 {
+			break
+		}
+
+	}
+	return unUTXOs
+}
+
+// 挖掘新的区块
+func (blockchain *Blockchain) MineNewBlock(from, to, amounts []string) {
+
+	//go run main.go send -from '["jack","luo"]' -to '["tom","tea"]' -amount '["10","90"]'
+
+	//1.建立一笔交易
+	amount, _ := strconv.Atoi(amounts[0])
+	tx := NewSimpleTransaction(from[0], to[0], int64(amount))
+
+	fmt.Println(from)
+	fmt.Println(to)
+	fmt.Println(amount)
+
+	//1。通过相关算法建立Transaction 数组
+
+	var txs []*Transaction
+	txs = append(txs, tx)
+
+	var block *Block
+
+	blockchain.DB.View(func(tx *bolt.Tx) error {
+
+		b := tx.Bucket([]byte(blockTableName))
+		if b != nil {
+			hash := b.Get([]byte(blockNewHeader))
+			blockBytes := b.Get(hash)
+			block = DeserializeBlock(blockBytes)
+		}
+
+		return nil
+	})
+
+	//2.建立新的区块
+	block = NewBlock(txs, block.Height, block.Hash)
+
+	// 3.更新存储到数据库
+
+	blockchain.DB.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(blockTableName))
+		if b != nil {
+			b.Put(block.Hash, block.Serialize())
+			b.Put([]byte(blockNewHeader), block.Hash)
+
+			blockchain.Tip = block.Hash
+		}
+
+		return nil
+	})
+
 }
