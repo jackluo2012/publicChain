@@ -9,10 +9,6 @@ func (cli *Cli) getBalance(address string) {
 	blockchain := BlockChainObject()
 	defer blockchain.DB.Close()
 
-	txOutputs := blockchain.UnUTXOs(address)
-	var amount int64
-	for _, utxso := range txOutputs {
-		amount += utxso.Output.Value
-	}
+	amount := blockchain.GetBalance(address)
 	fmt.Println(amount)
 }

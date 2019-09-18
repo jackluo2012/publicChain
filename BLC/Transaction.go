@@ -65,7 +65,7 @@ func (tx *Transaction) HashTransaction() {
 }
 
 // 2.转账时产生的Transaction
-func NewSimpleTransaction(from, to string, amount int64, blockchain *Blockchain) *Transaction {
+func NewSimpleTransaction(from, to string, amount int64, blockchain *Blockchain,txs []*Transaction) *Transaction {
 
 	// 1.有一个函数，返回from 这个人所有的未花费交易输出所对应的Transaction
 
@@ -73,7 +73,7 @@ func NewSimpleTransaction(from, to string, amount int64, blockchain *Blockchain)
 	//unSpentTx := UnSpentTransationsWithAdress(from)
 
 	// 2.通过一个函数，返回
-	money, spendableUTXODic := blockchain.FindSpendableUTXOS(from, amount)
+	money, spendableUTXODic := blockchain.FindSpendableUTXOS(from, amount,txs)
 
 	var txInputs []*TXInput
 	var txOutputs []*TXOutput

@@ -199,13 +199,64 @@ func BlockChainObject() *Blockchain {
 }
 
 // 如果一个地址对应的TXOutput 未花费，那么这个Transaction就应该添加到数据中返回
-func (blockchain *Blockchain) UnUTXOs(address string) []*UTXOS {
+func (blockchain *Blockchain) UnUTXOs(address string, txs []*Transaction) []*UTXOS {
 
 	// 未消费
 	var unUTXOs []*UTXOS
 
 	spentTXOutputs := make(map[string][]int)
 	// input 消费
+
+	for _, tx := range txs {
+		// txHash
+		//Vins
+		if tx.IsCoinbaseTransactions() == false {
+
+			for _, in := range tx.Vins {
+				//是否能够解锁
+				if in.UnLockWithAdress(address) {
+
+					key := hex.EncodeToString(in.TxHash)
+					//就有了 input数据
+					spentTXOutputs[key] = append(spentTXOutputs[key], in.Vout)
+				}
+			}
+		}
+
+	}
+
+	for _, tx := range txs {
+
+	Work1:
+		for index, out := range tx.Vouts {
+
+			for hash, indexArray := range spentTXOutputs {
+
+				txHashStr := hex.EncodeToString(tx.TxHash)
+
+				if hash == txHashStr {
+
+					var isUnSpentUTXO bool
+
+					for _, outIndex := range indexArray {
+						if index == outIndex {
+							isUnSpentUTXO = true
+							continue Work1
+						}
+
+						if isUnSpentUTXO == false {
+							txout := &UTXOS{tx.TxHash, index, out}
+							unUTXOs = append(unUTXOs, txout)
+						}
+					}
+
+				} else {
+					txout := &UTXOS{tx.TxHash, index, out}
+					unUTXOs = append(unUTXOs, txout)
+				}
+			}
+		}
+	}
 
 	blockIterator := blockchain.Iterator()
 
@@ -224,31 +275,36 @@ func (blockchain *Blockchain) UnUTXOs(address string) []*UTXOS {
 					if in.UnLockWithAdress(address) {
 
 						key := hex.EncodeToString(in.TxHash)
+						//就有了 input数据
 						spentTXOutputs[key] = append(spentTXOutputs[key], in.Vout)
 					}
 				}
 			}
 
 			//Vouts
+		work:
 			for index, out := range tx.Vouts {
 
 				//解锁
 				if out.UnLockWithAdress(address) {
 
 					if spentTXOutputs != nil {
-						if (len(spentTXOutputs) != 0) {
+
+						if len(spentTXOutputs) != 0 {
+
+							//判断是谁的hash
 							for txHash, indexArray := range spentTXOutputs {
 
-								if txHash == hex.EncodeToString(tx.TxHash) {
-									for _, i := range indexArray {
-										if index == i {
-											continue
-										} else {
-											txout := &UTXOS{tx.TxHash, index, out}
-											unUTXOs = append(unUTXOs, txout)
-										}
+								for _, i := range indexArray {
+
+									if index == i && txHash == hex.EncodeToString(tx.TxHash) {
+										continue work
+									} else {
+										txout := &UTXOS{tx.TxHash, index, out}
+										unUTXOs = append(unUTXOs, txout)
 									}
 								}
+
 							}
 						} else {
 							txout := &UTXOS{tx.TxHash, index, out}
@@ -271,9 +327,11 @@ func (blockchain *Blockchain) UnUTXOs(address string) []*UTXOS {
 }
 
 //转账时查找 可用的 UTXO
-func (blockchain *Blockchain) FindSpendableUTXOS(from string, amount int64) (int64, map[string][]int) {
+func (blockchain *Blockchain) FindSpendableUTXOS(from string, amount int64, txs []*Transaction) (int64, map[string][]int) {
+
 	// 1.现获取 所有的 UTXO
-	utxos := blockchain.UnUTXOs(from)
+
+	utxos := blockchain.UnUTXOs(from, txs)
 
 	spendableUTXO := make(map[string][]int)
 	// 2.遍历 utxos
@@ -305,17 +363,16 @@ func (blockchain *Blockchain) MineNewBlock(from, to, amounts []string) {
 	//go run main.go send -from '["jack","luo"]' -to '["tom","tea"]' -amount '["10","90"]'
 
 	//1.建立一笔交易
-	amount, _ := strconv.Atoi(amounts[0])
-	tx := NewSimpleTransaction(from[0], to[0], int64(amount), blockchain)
-
-	fmt.Println(from)
-	fmt.Println(to)
-	fmt.Println(amount)
-
-	//1。通过相关算法建立Transaction 数组
 
 	var txs []*Transaction
-	txs = append(txs, tx)
+
+	for _, address := range from {
+		amount, _ := strconv.Atoi(amounts[0])
+		tx := NewSimpleTransaction(address, to[0], int64(amount), blockchain, txs)
+		txs = append(txs, tx)
+	}
+
+	//1。通过相关算法建立Transaction 数组
 
 	var block *Block
 
@@ -348,4 +405,16 @@ func (blockchain *Blockchain) MineNewBlock(from, to, amounts []string) {
 		return nil
 	})
 
+}
+
+// 查询 余额
+
+func (blockchain *Blockchain) GetBalance(address string) int64 {
+
+	txOutputs := blockchain.UnUTXOs(address, []*Transaction{})
+	var amount int64
+	for _, utxso := range txOutputs {
+		amount += utxso.Output.Value
+	}
+	return amount
 }
