@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"github.com/labstack/gommon/log"
+	"log"
 )
 
 //将int64转换为64字节数组
@@ -30,4 +30,12 @@ func JSONToArray(jsonstring string) []string {
 	}
 	return sArr
 
+}
+
+// 字节数组反转
+
+func ReverseBytes(data []byte) {
+	for i, j := 0, len(data)-1; i < j; i, j = i+1, j-1 {
+		data[i], data[j] = data[j], data[i]
+	}
 }
