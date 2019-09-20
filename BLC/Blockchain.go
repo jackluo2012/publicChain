@@ -63,7 +63,7 @@ func (blc *Blockchain) PrintChain() {
 			fmt.Println("Vouts:")
 			for _, out := range tx.Vouts {
 				fmt.Println(out.Value)
-				fmt.Println(out.ScriptPubKey)
+				fmt.Println(out.Ripemd160Hash)
 			}
 		}
 
@@ -213,8 +213,12 @@ func (blockchain *Blockchain) UnUTXOs(address string, txs []*Transaction) []*UTX
 		if tx.IsCoinbaseTransactions() == false {
 
 			for _, in := range tx.Vins {
-				//是否能够解锁
-				if in.UnLockWithAdress(address) {
+				//是否能够解锁 - 公钥Hash 进行编码
+				publicKeyHash := Base58Decode([]byte(address))
+				//将第一个 和 最后四个干掉 ,拿到了公钥hash ,进行解锁
+				ripemd160Hash := publicKeyHash[1 : len(publicKeyHash)-4]
+
+				if in.UnLockRipemd160Hash(ripemd160Hash) {
 
 					key := hex.EncodeToString(in.TxHash)
 					//就有了 input数据
@@ -271,8 +275,11 @@ func (blockchain *Blockchain) UnUTXOs(address string, txs []*Transaction) []*UTX
 			if tx.IsCoinbaseTransactions() == false {
 
 				for _, in := range tx.Vins {
-					//是否能够解锁
-					if in.UnLockWithAdress(address) {
+					//是否能够解锁 - 公钥Hash 进行编码
+					publicKeyHash := Base58Decode([]byte(address))
+					//将第一个 和 最后四个干掉 ,拿到了公钥hash ,进行解锁
+					ripemd160Hash := publicKeyHash[1 : len(publicKeyHash)-4]
+					if in.UnLockRipemd160Hash(ripemd160Hash) {
 
 						key := hex.EncodeToString(in.TxHash)
 						//就有了 input数据

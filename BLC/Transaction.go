@@ -33,10 +33,9 @@ func (tx *Transaction) IsCoinbaseTransactions() bool {
 func NewCoinBaseTransaction(address string) *Transaction {
 
 	// 代表消费信息
-	txInput := &TXInput{[]byte{}, -1, "Genesis Block"}
+	txInput := &TXInput{[]byte{}, -1, nil, []byte{}}
 	// 未消费
-	txOutput := &TXOutput{10, address}
-
+	txOutput := NewTXOutput(10, address)
 	txCoinbase := &Transaction{[]byte{}, []*TXInput{txInput}, []*TXOutput{txOutput}}
 
 	//设置hash值
@@ -65,15 +64,18 @@ func (tx *Transaction) HashTransaction() {
 }
 
 // 2.转账时产生的Transaction
-func NewSimpleTransaction(from, to string, amount int64, blockchain *Blockchain,txs []*Transaction) *Transaction {
+func NewSimpleTransaction(from, to string, amount int64, blockchain *Blockchain, txs []*Transaction) *Transaction {
 
 	// 1.有一个函数，返回from 这个人所有的未花费交易输出所对应的Transaction
 
 	//unUTXOs := blockchain.UnUTXOs(from)
 	//unSpentTx := UnSpentTransationsWithAdress(from)
 
+	wallets, _ := NewWallets()
+	wallet := wallets.Walets[from]
+
 	// 2.通过一个函数，返回
-	money, spendableUTXODic := blockchain.FindSpendableUTXOS(from, amount,txs)
+	money, spendableUTXODic := blockchain.FindSpendableUTXOS(from, amount, txs)
 
 	var txInputs []*TXInput
 	var txOutputs []*TXOutput
@@ -82,17 +84,18 @@ func NewSimpleTransaction(from, to string, amount int64, blockchain *Blockchain,
 		txHashBytes, _ := hex.DecodeString(txHash)
 		for _, index := range indexArray {
 			//未花费的交易输出
-			txInput := &TXInput{txHashBytes, index, from}
+			txInput := &TXInput{txHashBytes, index, nil, wallet.PublicKey}
 			txInputs = append(txInputs, txInput)
 		}
 	}
 
 	// 转账
-	txOutput := &TXOutput{amount, to}
+	txOutput := NewTXOutput(int64(amount), to)
 	txOutputs = append(txOutputs, txOutput)
 
 	//找零
-	txOutput = &TXOutput{money - amount, from}
+	txOutput = NewTXOutput(money-amount, from)
+	//txOutput = &TXOutput{money - amount, from}
 	txOutputs = append(txOutputs, txOutput)
 
 	tx := &Transaction{[]byte(""), txInputs, txOutputs}
@@ -101,4 +104,15 @@ func NewSimpleTransaction(from, to string, amount int64, blockchain *Blockchain,
 	tx.HashTransaction()
 
 	return tx
+}
+
+func NewUTXOTransaction(from, to string, amount int, bc *Blockchain) *Transaction {
+	var inputs []TXInput
+	var outputs []TXOutput
+
+	wallets, err := NewWallets()
+	if err != nil {
+		log.Panic(err)
+	}
+	wallet :=wallets.
 }

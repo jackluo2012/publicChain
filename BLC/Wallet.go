@@ -49,7 +49,7 @@ func IsValidForAddress(address []byte) bool {
 
 func (w *Wallet) GetAddress() []byte {
 	// 1. hash160  先将PublicKey
-	ripemd160Hash := w.Ripemd160Hash(w.PublicKey)
+	ripemd160Hash := Ripemd160Hash(w.PublicKey)
 
 	version_ripemd160Hash := append([]byte{version}, ripemd160Hash...)
 
@@ -71,7 +71,7 @@ func CheckSum(payload []byte) []byte {
 
 }
 
-func (w *Wallet) Ripemd160Hash(publicKey []byte) []byte {
+func Ripemd160Hash(publicKey []byte) []byte {
 
 	//1. 256
 
