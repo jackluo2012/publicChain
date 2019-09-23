@@ -1,6 +1,8 @@
 package BLC
 
 import (
+	"bytes"
+	"crypto/ecdsa"
 	"encoding/hex"
 	"fmt"
 	"github.com/boltdb/bolt"
@@ -424,4 +426,39 @@ func (blockchain *Blockchain) GetBalance(address string) int64 {
 		amount += utxso.Output.Value
 	}
 	return amount
+}
+
+func (blockchain *Blockchain) SignTransaction(tx *Transaction, private ecdsa.PrivateKey) {
+	if tx.IsCoinbaseTransactions() {
+		return
+	}
+
+	prevTXs := make(map[string]Transaction)
+	for _, vin := range tx.Vins {
+		prevTX, err := blockchain.FindTransaction(vin.TxHash)
+		if err != nil {
+			log.Panic(err)
+		}
+		prevTXs[hex.EncodeToString(prevTX.TxHash)] = prevTX
+
+	}
+
+	tx.Sign(private, prevTXs)
+}
+
+func (blockchain *Blockchain) FindTransaction(id []byte) (Transaction, error) {
+	bci := blockchain.Iterator()
+	for {
+		block := bci.Next()
+		for _, tx := range block.Txs {
+			if bytes.Compare(tx.TxHash, id) == 0 {
+				return *tx, nil
+			}
+		}
+
+		if len(block.PrevBlockHash) == 0 {
+			break
+		}
+
+	}
 }
